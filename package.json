@@ -1,0 +1,25 @@
+{
+  "name": "beanie-dash",
+  "version": "1.0.0",
+  "description": "Neon-themed endless runner PWA game",
+  "scripts": {
+    "start": "python3 dev_server.py",
+    "dev": "python3 dev_server.py",
+    "dev:watchdog": "python3 dev_server_watchdog.py",
+    "dev:node": "nodemon --exec 'python3 -m http.server 8000' --ext html,js,css,json --watch .",
+    "serve": "python3 -m http.server 8000",
+    "serve:https": "npx serve . --ssl-cert cert.pem --ssl-key key.pem",
+    "lighthouse": "npx lighthouse http://localhost:8000 --view"
+  },
+  "keywords": [
+    "game",
+    "pwa",
+    "endless-runner",
+    "html5-game"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}

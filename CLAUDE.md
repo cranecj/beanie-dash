@@ -13,10 +13,19 @@ This is an HTML5 web game built as a Progressive Web App (PWA). The game runs en
 ## Common Development Commands
 
 ```bash
-# Start local development server
+# Start local development server with auto-reload on file changes
+python3 dev_server.py
+# or specify a custom port
+python3 dev_server.py 8001
+
+# Alternative: Use watchdog for more robust file watching (requires: pip install watchdog)
+python3 dev_server_watchdog.py
+
+# Alternative: Use nodemon if you have Node.js installed
+npx nodemon --exec "python3 -m http.server 8000" --ext html,js,css,json
+
+# Simple server without auto-reload
 python3 -m http.server 8000
-# or
-npx serve .
 
 # Test PWA functionality locally with HTTPS
 npx serve . --ssl-cert cert.pem --ssl-key key.pem

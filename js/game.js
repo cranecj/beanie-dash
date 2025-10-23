@@ -27,6 +27,7 @@ class BeanieGame {
         // Game Physics
         this.gravity = 0.8;
         this.jumpPower = -14; // Strong enough to jump over 2 obstacles
+        this.maxFallSpeed = 20; // Terminal velocity to prevent tunneling through platforms
         this.groundY = 0;
         this.speed = 3.5; // Even easier starting speed
         this.maxSpeed = 12; // Slightly lower max speed
@@ -45,6 +46,9 @@ class BeanieGame {
         this.particles = [];
         this.screenShake = 0;
         this.glowIntensity = 1;
+
+        // Debug mode - set to true to see collision boxes
+        this.debugMode = false;
 
         // Music Sync
         this.beatTimer = 0;
@@ -165,10 +169,18 @@ class BeanieGame {
     }
 
     generateInitialObstacles() {
-        // Start with just 2 obstacles, all simple spikes for learning
-        for (let i = 0; i < 2; i++) {
-            this.generateSimpleSpike(this.lastObstacleX + this.obstacleSpacing);
-        }
+        // Start with alternating spikes and long platforms for easy learning
+        // First a spike
+        this.generateSimpleSpike(this.lastObstacleX + this.obstacleSpacing);
+
+        // Then a long platform to jump on
+        this.generateEasyPlatform(this.lastObstacleX + this.obstacleSpacing);
+
+        // Another spike
+        this.generateSimpleSpike(this.lastObstacleX + this.obstacleSpacing);
+
+        // Another platform
+        this.generateEasyPlatform(this.lastObstacleX + this.obstacleSpacing);
     }
 
     generateSimpleSpike(x) {
@@ -177,10 +189,30 @@ class BeanieGame {
             x: x || this.lastObstacleX + this.obstacleSpacing,
             type: 'spike',
             passed: false,
-            y: this.groundY,
+            y: this.groundY - 40, // Position y at the TOP of the spike (40px above ground)
             width: 30,
             height: 40,
-            color: '#ff00ff'
+            color: '#ff00ff',
+            collisionWidth: 20, // Narrower collision box for triangle shape
+            collisionOffset: 5, // Center the collision box
+            groundY: this.groundY // Store ground position for drawing
+        };
+
+        this.obstacles.push(obstacle);
+        this.lastObstacleX = obstacle.x;
+    }
+
+    generateEasyPlatform(x) {
+        // Generate a long, easy-to-jump-on platform for beginners
+        const obstacle = {
+            x: x || this.lastObstacleX + this.obstacleSpacing,
+            type: 'jump_platform',
+            passed: false,
+            y: this.groundY - 80, // Nice height for easy jumping
+            width: 120, // Extra long platform for easy landing
+            height: 15,
+            color: '#ffff00',
+            isJumpable: true
         };
 
         this.obstacles.push(obstacle);
@@ -189,13 +221,10 @@ class BeanieGame {
 
     generateObstacle(x) {
         // Progressive difficulty - introduce obstacles gradually
-        let availableTypes = ['spike']; // Always have spikes
+        let availableTypes = ['spike', 'jump_platform']; // Start with spikes and platforms from the beginning
 
-        if (this.difficultyLevel > 1) {
-            availableTypes.push('jump_platform'); // Static platforms introduced early
-        }
-        if (this.difficultyLevel > 2) {
-            availableTypes.push('block');
+        if (this.difficultyLevel > 3) {
+            availableTypes.push('block'); // Blocks come later now
         }
         if (this.difficultyLevel > 6) {
             availableTypes.push('platform'); // Moving platforms come much later
@@ -217,17 +246,27 @@ class BeanieGame {
 
         switch(type) {
             case 'spike':
-                obstacle.y = this.groundY;
+                obstacle.y = this.groundY - 40; // Position y at the TOP of the spike (40px above ground)
                 obstacle.width = 30;
                 obstacle.height = 40;
                 obstacle.color = '#ff00ff';
+                obstacle.collisionWidth = 20; // Narrower collision box for triangle shape
+                obstacle.collisionOffset = 5; // Center the collision box
+                obstacle.groundY = this.groundY; // Store ground position for drawing
                 break;
 
             case 'jump_platform':
                 // Static platforms at various heights that player can land on
-                const heights = [60, 80, 100, 120];
+                const heights = [60, 80, 100];  // Removed highest platform for easier jumping
                 obstacle.y = this.groundY - heights[Math.floor(Math.random() * heights.length)];
-                obstacle.width = 80 + Math.random() * 40; // Random width between 80-120
+
+                // Make platforms longer in early game for easier landing
+                if (this.difficultyLevel <= 2) {
+                    obstacle.width = 100 + Math.random() * 50; // 100-150 width for beginners
+                } else {
+                    obstacle.width = 80 + Math.random() * 40; // 80-120 width normally
+                }
+
                 obstacle.height = 15;
                 obstacle.color = '#ffff00';
                 obstacle.isJumpable = true; // Mark as a platform you can land on
@@ -335,6 +374,10 @@ class BeanieGame {
         // Apply gravity
         if (!this.player.grounded) {
             this.player.velocity += this.gravity;
+            // Apply terminal velocity to prevent tunneling through platforms
+            if (this.player.velocity > this.maxFallSpeed) {
+                this.player.velocity = this.maxFallSpeed;
+            }
         }
 
         // Update position
@@ -342,20 +385,24 @@ class BeanieGame {
 
         // Check platform collisions first
         let landedOnPlatform = false;
-        if (this.player.velocity > 0) { // Only check when falling
+        if (this.player.velocity >= 0) { // Check when falling or standing still
             for (let obstacle of this.obstacles) {
                 if (obstacle.isJumpable) {
                     const playerBottom = this.player.y + this.player.size;
+                    const playerPrevBottom = this.player.y + this.player.size - this.player.velocity; // Previous position
                     const platformTop = obstacle.y;
                     const platformBottom = obstacle.y + obstacle.height;
 
-                    // Check if player is above platform and falling onto it
-                    if (this.player.x + this.player.size/2 > obstacle.x &&
-                        this.player.x - this.player.size/2 < obstacle.x + obstacle.width &&
-                        playerBottom >= platformTop &&
-                        playerBottom <= platformBottom + 10 &&
-                        this.player.velocity > 0) {
+                    // Check if player is horizontally aligned with platform
+                    const horizontallyAligned = this.player.x + this.player.size/2 > obstacle.x &&
+                                               this.player.x - this.player.size/2 < obstacle.x + obstacle.width;
 
+                    // More forgiving vertical collision - check if player passed through or is on platform
+                    const verticallyAligned = (playerBottom >= platformTop - 5 && playerBottom <= platformBottom + 25) ||
+                                             (playerPrevBottom <= platformTop && playerBottom >= platformTop);
+
+                    if (horizontallyAligned && verticallyAligned && this.player.velocity >= 0) {
+                        // Snap player to platform top
                         this.player.y = platformTop - this.player.size;
                         this.player.velocity = 0;
                         this.player.grounded = true;
@@ -376,10 +423,15 @@ class BeanieGame {
             this.player.jumping = false;
             this.player.onPlatform = null;
         } else if (!landedOnPlatform && this.player.grounded && this.player.onPlatform) {
-            // Player walked off platform
+            // Check if player has moved off the platform horizontally
             const platform = this.player.onPlatform;
-            if (this.player.x - this.player.size/2 > platform.x + platform.width ||
-                this.player.x + this.player.size/2 < platform.x) {
+            const playerLeft = this.player.x - this.player.size/2;
+            const playerRight = this.player.x + this.player.size/2;
+            const platformLeft = platform.x - this.speed; // Account for platform movement
+            const platformRight = platform.x + platform.width;
+
+            if (playerRight < platformLeft || playerLeft > platformRight) {
+                // Player has moved off the platform
                 this.player.grounded = false;
                 this.player.onPlatform = null;
             }
@@ -463,21 +515,55 @@ class BeanieGame {
         };
 
         for (let obstacle of this.obstacles) {
-            if (obstacle.type === 'platform' || obstacle.isJumpable) {
-                // Platforms are safe to land on
-                continue;
-            }
+            // For jumpable platforms, check if we're hitting from below or sides
+            if (obstacle.isJumpable) {
+                // Skip collision if player is on top of the platform
+                if (this.player.onPlatform === obstacle) {
+                    continue;
+                }
 
-            if (this.isColliding(playerBox, obstacle)) {
-                this.gameOver();
-                break;
+                // Check if hitting platform from below or sides
+                if (this.isColliding(playerBox, obstacle)) {
+                    const playerBottom = this.player.y + this.player.size;
+                    const playerTop = this.player.y;
+                    const platformTop = obstacle.y;
+
+                    // Only safe if player is coming from above and landing on top
+                    const isLandingOnTop = playerBottom <= platformTop + 15 && this.player.velocity >= 0;
+
+                    if (!isLandingOnTop) {
+                        // Hit platform from below or side - game over
+                        this.gameOver();
+                        break;
+                    }
+                }
+            } else if (obstacle.type === 'platform') {
+                // Moving platforms - skip if player is on it
+                if (this.player.onPlatform === obstacle) {
+                    continue;
+                }
+                // Otherwise check collision normally
+                if (this.isColliding(playerBox, obstacle)) {
+                    this.gameOver();
+                    break;
+                }
+            } else {
+                // All other obstacles (spikes, blocks, saws, poop) - any collision is death
+                if (this.isColliding(playerBox, obstacle)) {
+                    this.gameOver();
+                    break;
+                }
             }
         }
     }
 
     isColliding(box1, box2) {
-        return box1.x < box2.x + box2.width &&
-               box1.x + box1.width > box2.x &&
+        // Use custom collision box for obstacles if defined
+        const obstacleX = box2.x + (box2.collisionOffset || 0);
+        const obstacleWidth = box2.collisionWidth || box2.width;
+
+        return box1.x < obstacleX + obstacleWidth &&
+               box1.x + box1.width > obstacleX &&
                box1.y < box2.y + box2.height &&
                box1.y + box1.height > box2.y;
     }
@@ -543,6 +629,11 @@ class BeanieGame {
 
         if (this.screenShake > 0) {
             this.ctx.restore();
+        }
+
+        // Draw debug collision boxes if debug mode is on
+        if (this.debugMode) {
+            this.drawDebugCollisionBoxes();
         }
     }
 
@@ -661,10 +752,14 @@ class BeanieGame {
         this.ctx.fillStyle = `${obstacle.color}33`;
         this.ctx.lineWidth = 2;
 
+        // Use stored groundY for base, obstacle.y is now the top of the spike
+        const baseY = obstacle.groundY || (obstacle.y + obstacle.height);
+        const tipY = obstacle.y;
+
         this.ctx.beginPath();
-        this.ctx.moveTo(obstacle.x, obstacle.y);
-        this.ctx.lineTo(obstacle.x + obstacle.width/2, obstacle.y - obstacle.height);
-        this.ctx.lineTo(obstacle.x + obstacle.width, obstacle.y);
+        this.ctx.moveTo(obstacle.x, baseY);
+        this.ctx.lineTo(obstacle.x + obstacle.width/2, tipY);
+        this.ctx.lineTo(obstacle.x + obstacle.width, baseY);
         this.ctx.closePath();
         this.ctx.stroke();
         this.ctx.fill();
@@ -782,6 +877,26 @@ class BeanieGame {
         this.particles.forEach(particle => {
             this.ctx.fillStyle = `rgba(${particle.r}, ${particle.g}, ${particle.b}, ${particle.alpha})`;
             this.ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
+        });
+    }
+
+    drawDebugCollisionBoxes() {
+        // Draw player collision box
+        this.ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(
+            this.player.x - this.player.size/2 + 5,
+            this.player.y + 5,
+            this.player.size - 10,
+            this.player.size - 10
+        );
+
+        // Draw obstacle collision boxes
+        this.obstacles.forEach(obstacle => {
+            this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+            const obstacleX = obstacle.x + (obstacle.collisionOffset || 0);
+            const obstacleWidth = obstacle.collisionWidth || obstacle.width;
+            this.ctx.strokeRect(obstacleX, obstacle.y, obstacleWidth, obstacle.height);
         });
     }
 
@@ -903,7 +1018,117 @@ class BeanieGame {
 
 // Initialize game when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    const game = new BeanieGame();
+    // Password protection
+    const CORRECT_PASSWORD = 'poop.pop.cool';
+    const passwordScreen = document.getElementById('password-screen');
+    const passwordInput = document.getElementById('password-input');
+    const passwordSubmit = document.getElementById('password-submit');
+    const passwordError = document.getElementById('password-error');
+    const startScreen = document.getElementById('start-screen');
+
+    // Check if already authenticated in this session
+    const isAuthenticated = sessionStorage.getItem('beanieAuthenticated') === 'true';
+
+    let game = null;
+
+    if (isAuthenticated) {
+        // Already authenticated, skip password screen
+        passwordScreen.classList.add('hidden');
+        startScreen.classList.remove('hidden');
+        game = new BeanieGame();
+    } else {
+        // Show password screen
+        passwordScreen.classList.remove('hidden');
+        startScreen.classList.add('hidden');
+        passwordInput.focus();
+    }
+
+    // Password validation function
+    function validatePassword() {
+        const enteredPassword = passwordInput.value.trim();
+
+        if (enteredPassword === CORRECT_PASSWORD) {
+            // Correct password
+            sessionStorage.setItem('beanieAuthenticated', 'true');
+            passwordScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+            passwordError.classList.add('hidden');
+
+            // Initialize game after successful authentication
+            if (!game) {
+                game = new BeanieGame();
+            }
+
+            // Show logout button
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) {
+                logoutBtn.classList.remove('hidden');
+            }
+
+            // Play success sound if available
+            const jumpSound = document.getElementById('jumpSound');
+            if (jumpSound) {
+                jumpSound.play().catch(e => console.log('Sound play failed:', e));
+            }
+        } else {
+            // Wrong password
+            passwordError.classList.remove('hidden');
+            passwordInput.value = '';
+            passwordInput.classList.add('shake');
+
+            // Remove shake animation after it completes
+            setTimeout(() => {
+                passwordInput.classList.remove('shake');
+            }, 500);
+
+            // Play error sound if available
+            const deathSound = document.getElementById('deathSound');
+            if (deathSound) {
+                deathSound.play().catch(e => console.log('Sound play failed:', e));
+            }
+        }
+    }
+
+    // Password submit handlers
+    if (passwordSubmit) {
+        passwordSubmit.addEventListener('click', validatePassword);
+    }
+
+    if (passwordInput) {
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                validatePassword();
+            }
+        });
+    }
+
+    // Logout functionality (for testing)
+    const logoutBtn = document.getElementById('logout-btn');
+
+    function logout() {
+        sessionStorage.removeItem('beanieAuthenticated');
+        location.reload();
+    }
+
+    // Show logout button when authenticated
+    if (isAuthenticated && logoutBtn) {
+        logoutBtn.classList.remove('hidden');
+    }
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+    }
+
+    // Add keyboard shortcut for logout (L key)
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'l' || e.key === 'L') {
+            if (isAuthenticated || sessionStorage.getItem('beanieAuthenticated') === 'true') {
+                if (confirm('Logout and return to password screen?')) {
+                    logout();
+                }
+            }
+        }
+    });
 
     // PWA Install prompt
     let deferredPrompt;

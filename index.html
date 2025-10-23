@@ -39,8 +39,24 @@
         <!-- Main Game Canvas -->
         <canvas id="gameCanvas" tabindex="0"></canvas>
 
+        <!-- Password Screen -->
+        <div id="password-screen" class="screen">
+            <h1 class="neon-text">🔐 BEANIE DASH 🔐</h1>
+            <p class="subtitle">Enter Password to Play</p>
+            <div id="password-container">
+                <input type="password" id="password-input" placeholder="Enter password..." autocomplete="off">
+                <button id="password-submit" class="neon-btn">💩 UNLOCK 💩</button>
+            </div>
+            <div id="password-error" class="error-message hidden">
+                ❌ Wrong password! Try again...
+            </div>
+            <div id="password-hint">
+                <p>💡 Hint: What's brown, rhymes with loop, and sounds cool?</p>
+            </div>
+        </div>
+
         <!-- Start Screen -->
-        <div id="start-screen" class="screen">
+        <div id="start-screen" class="screen hidden">
             <h1 class="neon-text">BEANIE DASH</h1>
             <p class="subtitle">Press SPACE to Jump</p>
             <button id="start-btn" class="neon-btn">💩 START GAME 💩</button>
@@ -71,20 +87,28 @@
         <button id="install-btn" class="control-btn hidden" aria-label="Install App">
             📥
         </button>
+
+        <!-- Logout Button (for testing) -->
+        <button id="logout-btn" class="control-btn hidden" aria-label="Logout" style="bottom: 20px; left: 20px;" title="Press L key to logout">
+            🔒
+        </button>
     </div>
 
     <!-- Audio Elements -->
     <audio id="bgMusic" loop>
         <source src="assets/audio/background.mp3" type="audio/mpeg">
         <source src="assets/audio/background.ogg" type="audio/ogg">
+        <source src="assets/audio/background.wav" type="audio/wav">
     </audio>
     <audio id="jumpSound" preload="auto">
         <source src="assets/audio/jump.mp3" type="audio/mpeg">
         <source src="assets/audio/jump.ogg" type="audio/ogg">
+        <source src="assets/audio/jump.wav" type="audio/wav">
     </audio>
     <audio id="deathSound" preload="auto">
         <source src="assets/audio/death.mp3" type="audio/mpeg">
         <source src="assets/audio/death.ogg" type="audio/ogg">
+        <source src="assets/audio/death.wav" type="audio/wav">
     </audio>
 
     <script src="js/game.js" type="module"></script>
