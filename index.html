@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a0a0a">
+    <meta name="description" content="Beanie Dash - A neon-styled endless runner game">
+
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Beanie Dash">
+
+    <title>Beanie Dash - Neon Runner</title>
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/icon-32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Game HUD -->
+        <div id="hud">
+            <div id="progress-container">
+                <div id="progress-bar"></div>
+                <span id="progress-text">0%</span>
+            </div>
+            <div id="stats">
+                <div id="score">Distance: 0m</div>
+                <div id="difficulty">Level: Learning</div>
+                <div id="deaths">Attempts: 0</div>
+                <div id="best">Best: 0m</div>
+            </div>
+        </div>
+
+        <!-- Main Game Canvas -->
+        <canvas id="gameCanvas" tabindex="0"></canvas>
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="screen">
+            <h1 class="neon-text">BEANIE DASH</h1>
+            <p class="subtitle">Press SPACE to Jump</p>
+            <button id="start-btn" class="neon-btn">START GAME</button>
+            <div id="tutorial-hint">
+                <p>🎮 The game starts easy and gradually gets harder!</p>
+                <p>🎯 Jump over obstacles - You can clear 2 at once!</p>
+            </div>
+            <div id="high-score">Best Distance: <span id="high-score-value">0m</span></div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="game-over" class="screen hidden">
+            <h2 class="neon-text">GAME OVER</h2>
+            <p id="final-score">Distance: 0m</p>
+            <p id="attempt-count">Attempt #1</p>
+            <p class="subtitle">Press SPACE to Retry</p>
+            <button id="retry-btn" class="neon-btn">RETRY</button>
+            <button id="menu-btn" class="neon-btn">MENU</button>
+        </div>
+
+        <!-- Music Toggle -->
+        <button id="music-toggle" class="control-btn" aria-label="Toggle Music">
+            🎵
+        </button>
+
+        <!-- Install PWA Button -->
+        <button id="install-btn" class="control-btn hidden" aria-label="Install App">
+            📥
+        </button>
+    </div>
+
+    <!-- Audio Elements -->
+    <audio id="bgMusic" loop>
+        <source src="assets/audio/background.mp3" type="audio/mpeg">
+        <source src="assets/audio/background.ogg" type="audio/ogg">
+    </audio>
+    <audio id="jumpSound" preload="auto">
+        <source src="assets/audio/jump.mp3" type="audio/mpeg">
+        <source src="assets/audio/jump.ogg" type="audio/ogg">
+    </audio>
+    <audio id="deathSound" preload="auto">
+        <source src="assets/audio/death.mp3" type="audio/mpeg">
+        <source src="assets/audio/death.ogg" type="audio/ogg">
+    </audio>
+
+    <script src="js/game.js" type="module"></script>
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed'));
+            });
+        }
+    </script>
+</body>
+</html>

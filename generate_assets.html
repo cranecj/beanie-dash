@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Generate PWA Assets</title>
+</head>
+<body>
+    <h1>Asset Generator for Beanie Dash</h1>
+    <p>This page generates the icon assets needed for the PWA.</p>
+    <div id="canvases"></div>
+
+    <script>
+        // Icon sizes needed
+        const iconSizes = [32, 72, 96, 128, 144, 152, 192, 384, 512];
+
+        function createIcon(size) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            // Dark background
+            ctx.fillStyle = '#0a0a0a';
+            ctx.fillRect(0, 0, size, size);
+
+            // Draw neon square (player)
+            const margin = size / 4;
+
+            // Glow effect
+            ctx.shadowColor = '#ff00ff';
+            ctx.shadowBlur = size / 10;
+
+            // Main square
+            ctx.strokeStyle = '#ff00ff';
+            ctx.lineWidth = Math.max(2, size / 50);
+            ctx.strokeRect(margin, margin, size - margin * 2, size - margin * 2);
+
+            // Inner detail
+            ctx.strokeStyle = '#00ffff';
+            ctx.lineWidth = Math.max(1, size / 100);
+            const center = size / 2;
+            const crossSize = size / 6;
+
+            ctx.beginPath();
+            ctx.moveTo(center - crossSize, center);
+            ctx.lineTo(center + crossSize, center);
+            ctx.moveTo(center, center - crossSize);
+            ctx.lineTo(center, center + crossSize);
+            ctx.stroke();
+
+            return canvas;
+        }
+
+        // Generate and display icons
+        iconSizes.forEach(size => {
+            const canvas = createIcon(size);
+            const container = document.createElement('div');
+            container.innerHTML = `
+                <h3>icon-${size}.png (${size}x${size})</h3>
+                <p>Right-click and save as: assets/icons/icon-${size}.png</p>
+            `;
+            container.appendChild(canvas);
+            document.getElementById('canvases').appendChild(container);
+        });
+
+        // Also create a play icon
+        const playCanvas = createIcon(96);
+        const playContainer = document.createElement('div');
+        playContainer.innerHTML = `
+            <h3>play.png (96x96)</h3>
+            <p>Right-click and save as: assets/icons/play.png</p>
+        `;
+        playContainer.appendChild(playCanvas);
+        document.getElementById('canvases').appendChild(playContainer);
+
+        // Create screenshots
+        function createScreenshot(title) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1280;
+            canvas.height = 720;
+            const ctx = canvas.getContext('2d');
+
+            // Background
+            const gradient = ctx.createLinearGradient(0, 0, 1280, 720);
+            gradient.addColorStop(0, '#0a0a0a');
+            gradient.addColorStop(1, '#1a0033');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 1280, 720);
+
+            // Grid
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < 1280; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, 720);
+                ctx.stroke();
+            }
+            for (let y = 0; y < 720; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(1280, y);
+                ctx.stroke();
+            }
+
+            // Ground line
+            ctx.strokeStyle = '#00ffff';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 20;
+            ctx.beginPath();
+            ctx.moveTo(0, 620);
+            ctx.lineTo(1280, 620);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Title
+            ctx.font = 'bold 72px monospace';
+            ctx.fillStyle = '#00ffff';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 30;
+            ctx.fillText(title, 640, 150);
+
+            // Draw some obstacles
+            ctx.shadowBlur = 10;
+            for (let x = 300; x < 1000; x += 200) {
+                // Spike
+                ctx.strokeStyle = '#ff00ff';
+                ctx.shadowColor = '#ff00ff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(x, 620);
+                ctx.lineTo(x + 20, 580);
+                ctx.lineTo(x + 40, 620);
+                ctx.closePath();
+                ctx.stroke();
+            }
+
+            // Player
+            ctx.strokeStyle = '#ff00ff';
+            ctx.shadowColor = '#ff00ff';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(100, 570, 40, 40);
+
+            return canvas;
+        }
+
+        // Add screenshots
+        const gameplayCanvas = createScreenshot('BEANIE DASH');
+        const gameplayContainer = document.createElement('div');
+        gameplayContainer.innerHTML = `
+            <h3>gameplay.png (1280x720)</h3>
+            <p>Right-click and save as: assets/screenshots/gameplay.png</p>
+        `;
+        gameplayContainer.appendChild(gameplayCanvas);
+        document.getElementById('canvases').appendChild(gameplayContainer);
+
+        const menuCanvas = createScreenshot('MAIN MENU');
+        const menuContainer = document.createElement('div');
+        menuContainer.innerHTML = `
+            <h3>menu.png (1280x720)</h3>
+            <p>Right-click and save as: assets/screenshots/menu.png</p>
+        `;
+        menuContainer.appendChild(menuCanvas);
+        document.getElementById('canvases').appendChild(menuContainer);
+    </script>
+</body>
+</html>
