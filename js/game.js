@@ -20,6 +20,7 @@ class BeanieGame {
             rotation: 0,
             jumping: false,
             grounded: false,
+            onPlatform: null, // Track which platform the player is standing on
             trail: [] // For neon trail effect
         };
 
@@ -190,6 +191,9 @@ class BeanieGame {
         // Progressive difficulty - introduce obstacles gradually
         let availableTypes = ['spike']; // Always have spikes
 
+        if (this.difficultyLevel > 1) {
+            availableTypes.push('jump_platform'); // Static platforms introduced early
+        }
         if (this.difficultyLevel > 2) {
             availableTypes.push('block');
         }
@@ -217,6 +221,16 @@ class BeanieGame {
                 obstacle.width = 30;
                 obstacle.height = 40;
                 obstacle.color = '#ff00ff';
+                break;
+
+            case 'jump_platform':
+                // Static platforms at various heights that player can land on
+                const heights = [60, 80, 100, 120];
+                obstacle.y = this.groundY - heights[Math.floor(Math.random() * heights.length)];
+                obstacle.width = 80 + Math.random() * 40; // Random width between 80-120
+                obstacle.height = 15;
+                obstacle.color = '#ffff00';
+                obstacle.isJumpable = true; // Mark as a platform you can land on
                 break;
 
             case 'block':
@@ -326,12 +340,49 @@ class BeanieGame {
         // Update position
         this.player.y += this.player.velocity;
 
+        // Check platform collisions first
+        let landedOnPlatform = false;
+        if (this.player.velocity > 0) { // Only check when falling
+            for (let obstacle of this.obstacles) {
+                if (obstacle.isJumpable) {
+                    const playerBottom = this.player.y + this.player.size;
+                    const platformTop = obstacle.y;
+                    const platformBottom = obstacle.y + obstacle.height;
+
+                    // Check if player is above platform and falling onto it
+                    if (this.player.x + this.player.size/2 > obstacle.x &&
+                        this.player.x - this.player.size/2 < obstacle.x + obstacle.width &&
+                        playerBottom >= platformTop &&
+                        playerBottom <= platformBottom + 10 &&
+                        this.player.velocity > 0) {
+
+                        this.player.y = platformTop - this.player.size;
+                        this.player.velocity = 0;
+                        this.player.grounded = true;
+                        this.player.jumping = false;
+                        this.player.onPlatform = obstacle;
+                        landedOnPlatform = true;
+                        break;
+                    }
+                }
+            }
+        }
+
         // Ground collision
-        if (this.player.y >= this.groundY - this.player.size) {
+        if (!landedOnPlatform && this.player.y >= this.groundY - this.player.size) {
             this.player.y = this.groundY - this.player.size;
             this.player.velocity = 0;
             this.player.grounded = true;
             this.player.jumping = false;
+            this.player.onPlatform = null;
+        } else if (!landedOnPlatform && this.player.grounded && this.player.onPlatform) {
+            // Player walked off platform
+            const platform = this.player.onPlatform;
+            if (this.player.x - this.player.size/2 > platform.x + platform.width ||
+                this.player.x + this.player.size/2 < platform.x) {
+                this.player.grounded = false;
+                this.player.onPlatform = null;
+            }
         }
 
         // Update rotation
@@ -412,7 +463,7 @@ class BeanieGame {
         };
 
         for (let obstacle of this.obstacles) {
-            if (obstacle.type === 'platform') {
+            if (obstacle.type === 'platform' || obstacle.isJumpable) {
                 // Platforms are safe to land on
                 continue;
             }
@@ -584,6 +635,9 @@ class BeanieGame {
                 case 'spike':
                     this.drawSpike(obstacle);
                     break;
+                case 'jump_platform':
+                    this.drawJumpPlatform(obstacle);
+                    break;
                 case 'block':
                     this.drawBlock(obstacle);
                     break;
@@ -667,6 +721,27 @@ class BeanieGame {
 
         this.ctx.strokeRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
         this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+    }
+
+    drawJumpPlatform(obstacle) {
+        this.ctx.strokeStyle = obstacle.color;
+        this.ctx.fillStyle = `${obstacle.color}55`;
+        this.ctx.lineWidth = 3;
+
+        // Draw main platform
+        this.ctx.strokeRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+
+        // Draw support lines
+        const numSupports = Math.floor(obstacle.width / 20);
+        this.ctx.lineWidth = 1;
+        for (let i = 1; i < numSupports; i++) {
+            const x = obstacle.x + (i * obstacle.width / numSupports);
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, obstacle.y + obstacle.height);
+            this.ctx.lineTo(x, obstacle.y + obstacle.height + 10);
+            this.ctx.stroke();
+        }
     }
 
     drawPoop(obstacle) {
